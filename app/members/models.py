@@ -1,6 +1,6 @@
+from django.conf import settings
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
-from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.db import models
 
 
@@ -21,7 +21,7 @@ class UserManager(BaseUserManager):
 
     def create_user(self, email, password=None, **extra_fields):
         """Create and save a regular User with the given email and password."""
-        extra_fields.setdefault('is_staff', False)
+        extra_fields.setdefault('is_staff', "User table", False)
         extra_fields.setdefault('is_superuser', False)
         return self._create_user(email, password, **extra_fields)
 
@@ -39,8 +39,15 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractUser):
+    """User Table"""
     username = None
     email = models.EmailField('email address', unique=True)
+    following = models.ManyToManyField(
+        'self',
+        through='FollowRelations',
+        related_name='followers'
+    )
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
     objects = UserManager()
@@ -48,3 +55,41 @@ class User(AbstractUser):
     def __str(self):
         return self.email
 
+    class Meta:
+        verbose_name = '사용자'
+        verbose_name_plural = f'{verbose_name} 목록'
+
+
+class FollowRelations(models.Model):
+    RELATIONS_TYPES = (
+        ('f', 'Follow'),
+        ('b', 'Block'),
+    )
+
+    """follower"""
+    from_relation = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='follower_relations',
+        related_query_name='follower_relation'
+    )
+    """following"""
+    to_relation = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='following_relations',
+        related_query_name='following_relation',
+    )
+    """relation type"""
+    relation_type = models.CharField(
+        max_length=1,
+        choices=RELATIONS_TYPES,
+        default='f'
+    )
+    followed_at = models.DateTimeField(auto_now_add=True)
+
+
+    class Meta:
+        verbose_name = '팔로우'
+        verbose_name_plural = f'{verbose_name} 목록'
+        unique_together = [['from_relation', 'to_relation','relation_type']]
